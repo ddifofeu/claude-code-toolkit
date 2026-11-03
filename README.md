@@ -40,6 +40,31 @@ installer again changes nothing. To remove: delete the two hooks (or use `/hooks
 
 A tool or guard, a case in its tests, `tests/run.sh` passing, a README line. Add a line to
 `CLAUDE.md` only when code can't enforce it: that file costs tokens in every session.
+Contributors run `git config core.hooksPath .githooks` once: every commit then runs `tests/run.sh`,
+including `tests/sanitize.sh` (no emails, IPs, home paths, keys or tokens; commit authors must be
+GitHub noreply addresses). Put your own private words, one per line, in
+`~/.claude/toolkit-private-words` (never committed) and the scan refuses them too.
+
+## Pruning
+
+Each guard block adds a line to `~/.claude/toolkit-hits.log` (date, guard, command). Now and then,
+look at it on each machine: a guard or rule that hasn't fired in months is a candidate for removal,
+so the toolkit stays small. Rules in `CLAUDE.md` have no log; review them at the same time.
+
+## Using existing tools
+
+Projects on GitHub can track in GitHub issues instead of `tracker/`; the rules apply the same way.
+Projects that use the [pre-commit framework](https://pre-commit.com) get the tracker check with:
+
+```yaml
+- repo: https://github.com/ddifofeu/claude-code-toolkit
+  rev: main
+  hooks: [{id: tracker-check}]
+```
+
+The install and sync scripts do what a Claude Code plugin marketplace does. While the toolkit is a
+few files they are simpler; once it holds several hooks, skills or commands, packaging it as a
+plugin (installed with `/plugin`) is the better route.
 
 ## procs.sh
 
@@ -96,7 +121,8 @@ exist, or names a test the file no longer contains, so a deleted test can't slip
 
 ## Tests
 
-`tests/run.sh` checks the guard cases, `procs.sh` against itself, and the tracker's rejections.
+`tests/run.sh` checks the guard cases and its hit log, `procs.sh` against itself, the tracker's
+rejections, the pre-commit framework hook, and the sanitisation scan.
 
 ## Licence
 

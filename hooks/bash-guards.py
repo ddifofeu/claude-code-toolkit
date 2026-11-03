@@ -72,5 +72,12 @@ if __name__ == "__main__":
         sys.exit(1 if wrong else 0)
     why = refusal(json.load(sys.stdin).get("tool_input", {}).get("command", ""))
     if why:
+        # One line per block, so guards that never fire can be pruned (README, "Pruning").
+        try:
+            import time
+            with open(Path.home() / ".claude" / "toolkit-hits.log", "a") as log:
+                log.write(f"{time.strftime('%Y-%m-%d')}\tbash-guards\t{why.split()[0]}\n")
+        except OSError:
+            pass
         print(f"Blocked: {why}", file=sys.stderr)
         sys.exit(2)

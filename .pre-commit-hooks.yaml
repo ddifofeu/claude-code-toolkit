@@ -1,0 +1,10 @@
+# For projects that use the pre-commit framework (https://pre-commit.com):
+#   - repo: https://github.com/ddifofeu/claude-code-toolkit
+#     rev: main
+#     hooks: [{id: tracker-check}]
+- id: tracker-check
+  name: tracker check (fixed entries name an existing regression test)
+  entry: tracker/tracker.py check
+  language: script
+  pass_filenames: false
+  always_run: true

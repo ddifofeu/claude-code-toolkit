@@ -32,4 +32,16 @@ for broken in "002 NoTest fixed - - abc" "003 MissingTest fixed - tests/nope.py 
     rm "$repo/tracker/T-${broken%% *}-x.md"
 done
 
+# The guard logs each block (for pruning guards that never fire), and never fails without a log.
+home=$(mktemp -d); mkdir -p "$home/.claude"
+echo '{"tool_input":{"command":"pkill -f x"}}' | HOME=$home python3 hooks/bash-guards.py 2>/dev/null
+[ $? = 2 ] && grep -q "bash-guards	pkill" "$home/.claude/toolkit-hits.log" && ok "guard logs its blocks" || bad "guard hit log"
+rm -rf "$home"
+
+# The pre-commit framework hook points at an executable tracker.
+grep -q "entry: tracker/tracker.py check" .pre-commit-hooks.yaml && [ -x tracker/tracker.py ] \
+    && ok "pre-commit framework hook" || bad "pre-commit framework hook"
+
+tests/sanitize.sh || fail=1
+
 [ $fail = 0 ] && echo "all passed" || { echo "failures"; exit 1; }
