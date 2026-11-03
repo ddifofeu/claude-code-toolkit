@@ -26,12 +26,20 @@ installer again changes nothing. To remove: delete the two hooks (or use `/hooks
 
 ## The rules (`CLAUDE.md`)
 
+0. **Proportion**: effort matched to the problem; enforce with code (tests, hooks, scripts) before
+   prose, since the rules file is read in every session.
 1. **A glitch seen twice gets a persistent, validated fix**: a script, a guard in the code, or a
    hook that blocks the bad pattern, proven by a test, not another manual workaround.
-2. **Every bug and requested change is tracked until verified, and never comes back**: tracked at
-   once with a status and its blockers, fixed only with a regression test named in the entry,
-   tests run before every commit and never loosened to make a change pass, a broken fix reopened
-   rather than refiled, and contradictions with earlier decisions raised instead of flip-flopping.
+2. **Bugs and requested changes are tracked until verified, and don't come back**: a status and
+   its blockers, a regression test per fix, tests run before every commit and never loosened, a
+   broken fix reopened rather than refiled, contradictions with earlier decisions raised.
+3. **General lessons come back here**: a fix that helps beyond one project is added to this repo
+   with a test, sanitised, and rules that never fire are removed.
+
+## Contributing a lesson
+
+A tool or guard, a case in its tests, `tests/run.sh` passing, a README line. Add a line to
+`CLAUDE.md` only when code can't enforce it: that file costs tokens in every session.
 
 ## procs.sh
 
