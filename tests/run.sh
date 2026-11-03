@@ -17,6 +17,9 @@ sleep 0.3
 bin/procs.sh kill "$marker" >/dev/null && ok "procs kill" || bad "procs kill"
 wait $target 2>/dev/null
 bin/procs.sh alive $target && bad "procs: target still alive" || ok "procs: target gone, caller alive"
+# A process that exits mid-scan: the shell itself reports a failed `< /proc/PID/...` unless the
+# redirect sits inside { } 2>/dev/null (it printed "No such file or directory" lines).
+grep -n '< "\$dir/' bin/procs.sh | grep -qv '{ ' && bad "procs: unguarded /proc redirect" || ok "procs: quiet when a process exits mid-scan"
 
 # The tracker: a good entry passes, and each kind of bad entry fails.
 repo=$(mktemp -d); trap 'rm -rf "$repo"' EXIT

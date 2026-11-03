@@ -36,7 +36,7 @@ matches() {  # matches PATTERN: prints "PID<TAB>command line" for each match
     for dir in /proc/[0-9]*; do
         pid=${dir#/proc/}
         [ -n "${skip[$pid]:-}" ] && continue
-        args=$(tr '\0' ' ' < "$dir/cmdline" 2>/dev/null) || continue
+        args=$({ tr '\0' ' ' < "$dir/cmdline"; } 2>/dev/null) || continue  # { }: the shell reports a failed < itself
         [ -z "$args" ] && continue                      # kernel threads
         comm=$(cat "$dir/comm" 2>/dev/null) || continue
         case "$comm" in
