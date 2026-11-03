@@ -42,6 +42,15 @@ rm -rf "$home"
 grep -q "entry: tracker/tracker.py check" .pre-commit-hooks.yaml && [ -x tracker/tracker.py ] \
     && ok "pre-commit framework hook" || bad "pre-commit framework hook"
 
+# The repo hook for web sessions: guards there (CLAUDE_CODE_REMOTE=true), does nothing locally,
+# where the user-level hook already runs, and nothing when the guard isn't installed.
+home=$(mktemp -d); mkdir -p "$home/.claude/hooks"; cp hooks/bash-guards.py "$home/.claude/hooks/"
+cmd=$(python3 -c 'import json; print(json.load(open("cloud/repo-settings.json"))["hooks"]["PreToolUse"][0]["hooks"][0]["command"])')
+web() { echo '{"tool_input":{"command":"pkill -f x"}}' | HOME=$1 CLAUDE_CODE_REMOTE=$2 bash -c "$cmd" 2>/dev/null; echo $?; }
+[ "$(web "$home" true)" = 2 ] && [ "$(web "$home" "")" = 0 ] && [ "$(web "$(mktemp -d)" true)" = 0 ] \
+    && ok "repo hook for web sessions" || bad "repo hook for web sessions"
+rm -rf "$home"
+
 tests/sanitize.sh || fail=1
 
 [ $fail = 0 ] && echo "all passed" || { echo "failures"; exit 1; }

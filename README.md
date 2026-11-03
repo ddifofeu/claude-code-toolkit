@@ -10,6 +10,30 @@ curl -fsSL https://raw.githubusercontent.com/ddifofeu/claude-code-toolkit/main/i
 Or clone and run `./install.sh`. To keep your own version in sync, fork it and run
 `TOOLKIT_REPO=you/your-fork ./install.sh`. Needs `bash`, `python3` and `curl` (Linux or macOS).
 
+## Claude Code on the web
+
+Cloud sessions don't read your machine's `~/.claude`. Two steps, once:
+
+1. **Rules and tools in every web session.** At claude.ai/code, open the environment you use (the
+   environment selector, then its settings), keep network access at *Trusted* (it allows GitHub),
+   and set its **setup script** to:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/ddifofeu/claude-code-toolkit/main/install.sh | bash
+   ```
+
+   It runs before each new session's environment is built, so `CLAUDE.md`, `procs.sh`, the guard
+   and the tracker are in place. Cached environments are rebuilt within about a week, which is
+   when toolkit updates reach them. Check in a session with `/context`: `~/.claude/CLAUDE.md` is
+   listed under memory files.
+2. **The command guard, per repository you use on the web.** Cloud sessions read a repository's
+   `.claude/settings.json` (single-repository sessions), not your user settings, so copy
+   `cloud/repo-settings.json` there (or merge its hook into the existing file). The hook runs only
+   in web sessions (`CLAUDE_CODE_REMOTE=true`), so locally the guard doesn't run twice.
+
+Multi-repository sessions and Claude Projects threads don't read repository hooks; they still get
+the rules from step 1.
+
 ## What it installs (in `~/.claude`)
 
 | File | Does |
