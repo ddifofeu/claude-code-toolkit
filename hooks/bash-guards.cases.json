@@ -1,0 +1,106 @@
+[
+ [
+  2,
+  "pkill -f foo"
+ ],
+ [
+  2,
+  "ls; pgrep -fa x"
+ ],
+ [
+  2,
+  "a && killall node"
+ ],
+ [
+  2,
+  "kill $(pgrep -f x)"
+ ],
+ [
+  2,
+  "ssh HOST 'pkill -f my_worker'"
+ ],
+ [
+  2,
+  "ssh HOST \"cd x; pgrep -c y\""
+ ],
+ [
+  2,
+  "ssh -o ConnectTimeout=5 HOST 'uptime; pkill -f x'"
+ ],
+ [
+  2,
+  "bash -c 'sleep 1; pkill -f x'"
+ ],
+ [
+  2,
+  "ps aux | xargs pkill"
+ ],
+ [
+  2,
+  "sudo pkill x"
+ ],
+ [
+  2,
+  "timeout 5 pgrep x"
+ ],
+ [
+  2,
+  "echo hi\npgrep x"
+ ],
+ [
+  0,
+  "ls"
+ ],
+ [
+  0,
+  "git commit -m \"replace pkill with procs.sh\""
+ ],
+ [
+  0,
+  "grep -rnE \"\\b(pkill|pgrep|killall)\\b\" tools"
+ ],
+ [
+  0,
+  "grep -rn 'pkill; pgrep' tools/"
+ ],
+ [
+  0,
+  "procs.sh kill foo"
+ ],
+ [
+  0,
+  "echo \"do not use pgrep\""
+ ],
+ [
+  0,
+  "cat notes-pkill.txt"
+ ],
+ [
+  0,
+  "ssh HOST bash -s -- kill my_worker < procs.sh"
+ ],
+ [
+  0,
+  "ssh HOST 'uptime; nproc'"
+ ],
+ [
+  0,
+  "cat > notes.md <<'EOF'\nNever use pkill.\npgrep -f matches its caller\nEOF\necho done"
+ ],
+ [
+  0,
+  "git commit -q -F - <<'EOF'\nfix\n\npgrep/pkill -f match the shell\nEOF"
+ ],
+ [
+  2,
+  "cat > x <<'EOF'\ntext\nEOF\npkill -f foo"
+ ],
+ [
+  2,
+  "ssh HOST bash -s <<'EOF'\ncd work\npkill -f mine\nEOF"
+ ],
+ [
+  2,
+  "bash <<EOF\npgrep -c x\nEOF"
+ ]
+]

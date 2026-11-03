@@ -1,0 +1,16 @@
+#!/bin/bash
+# Git pre-commit hook: the tracker check, then your regression tests.
+# Install in a repository: copy to .githooks/pre-commit, `git config core.hooksPath .githooks`,
+# and put tracker.py where TRACKER points (default tools/tracker.py).
+# Add one line per area: `if touches '^src/'; then run "unit tests" make test; fi`.
+set -u
+cd "$(git rev-parse --show-toplevel)"
+TRACKER=${TRACKER:-tools/tracker.py}
+staged=$(git diff --cached --name-only)
+touches() { grep -qE "$1" <<< "$staged"; }
+run() { echo "pre-commit: $1"; shift; "$@" || { echo "pre-commit: FAILED: $*" >&2; exit 1; }; }
+
+run "tracker" python3 "$TRACKER" check
+# Examples:
+# if touches '^(src|tests)/'; then run "unit tests" python3 -m pytest -q; fi
+# if touches '^app/'; then run "unit tests" ./gradlew -q testDebugUnitTest; fi
