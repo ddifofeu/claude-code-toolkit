@@ -1,0 +1,24 @@
+{
+  "flag": [
+    "Next I'll run the wake-word accuracy test.",
+    "The current mining round finishes on the old code. I'll start on the feature bank now.",
+    "After 08:00, I'll run the spoken wake test on the branch build.",
+    "I'll start item 1 now. It runs without sound and without the phone.",
+    "I'll start it now: it needs a small change to the training jobs.",
+    "I'm starting the next round on the build server."
+  ],
+  "pass": [
+    "Tell me when you're ready and I'll start recording.",
+    "If you want option 2 anyway, tell me and I'll queue it.",
+    "When it finishes I'll run its 21-hour false-trigger test across both boxes.",
+    "Once mining ends, I'll sync the data to the second machine and queue 15 retraining jobs.",
+    "When both are done I'll train round 6 for all 14 and run the 22-hour test.",
+    "Plug the phone in, tell me when you're ready, and I'll start it.",
+    "If you have 5 minutes, plug the phone in. I'll start a recording, and you say each of these twice.",
+    "The round is running. I'll report when it finishes.",
+    "Nothing will make a sound before 08:00.",
+    "I haven't started the training round: it needs your OK first.",
+    "This happened because my final message said \"I'll start it now\" with no tool call behind it, and a turn that ends without a tool call stays ended.",
+    "The costliest was last night: I said \u201cI'll start item 1 now\u201d and nothing ran overnight."
+  ]
+}

@@ -41,12 +41,13 @@ the rules from step 1.
 | `CLAUDE.md` | The working rules Claude Code reads in every session (an existing file is kept as `CLAUDE.md.bak-*`) |
 | `bin/procs.sh` | Find or stop processes by command line without ever matching the caller |
 | `hooks/bash-guards.py` | Refuses commands that are known to go wrong, naming the safe alternative |
+| `hooks/promise-guard.py` | Sends a turn back once when it ends on "I'll start it now" with nothing started: a turn only restarts on your message or a background job's notification |
 | `tracker/tracker.py`, `tracker/pre-commit` | A bug and change tracker to copy into a project, with its commit check |
 | `hooks/sync-toolkit.sh` | Refreshes these files from GitHub at the start of each session |
 
-It also adds two hooks to `~/.claude/settings.json`, keeping everything already there (a backup is
-written first): `SessionStart` runs the sync, `PreToolUse` on Bash runs the guard. Running the
-installer again changes nothing. To remove: delete the two hooks (or use `/hooks`) and the files.
+It also adds three hooks to `~/.claude/settings.json`, keeping everything already there (a backup is
+written first): `SessionStart` runs the sync, `PreToolUse` on Bash runs the guard, `Stop` runs the promise guard. Running the
+installer again changes nothing. To remove: delete the three hooks (or use `/hooks`) and the files.
 
 ## The rules (`CLAUDE.md`)
 

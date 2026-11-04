@@ -11,6 +11,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ \"$CLAUDE_CODE_REMOTE\" = true ] && [ -f ~/.claude/hooks/promise-guard.py ]; then python3 ~/.claude/hooks/promise-guard.py; fi",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

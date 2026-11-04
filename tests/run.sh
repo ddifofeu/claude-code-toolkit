@@ -51,6 +51,14 @@ web() { echo '{"tool_input":{"command":"pkill -f x"}}' | HOME=$1 CLAUDE_CODE_REM
     && ok "repo hook for web sessions" || bad "repo hook for web sessions"
 rm -rf "$home"
 
+# The promise guard: its cases; it sends a promise back once (logged), lets the second stop through.
+python3 hooks/promise-guard.py --test >/dev/null && ok "promise guard cases" || bad "promise guard cases: $(python3 hooks/promise-guard.py --test)"
+home=$(mktemp -d); mkdir -p "$home/.claude"
+stop() { echo "{\"stop_hook_active\":$1,\"last_assistant_message\":\"Done. I'll start the next run now.\"}" | HOME=$home python3 hooks/promise-guard.py; }
+stop false | grep -q '"decision": "block"' && grep -q "promise-guard" "$home/.claude/toolkit-hits.log" && [ -z "$(stop true)" ] \
+    && ok "promise guard blocks once and logs" || bad "promise guard blocks once and logs"
+rm -rf "$home"
+
 tests/sanitize.sh || fail=1
 
 [ $fail = 0 ] && echo "all passed" || { echo "failures"; exit 1; }
