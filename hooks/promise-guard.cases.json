@@ -5,7 +5,8 @@
     "After 08:00, I'll run the spoken wake test on the branch build.",
     "I'll start item 1 now. It runs without sound and without the phone.",
     "I'll start it now: it needs a small change to the training jobs.",
-    "I'm starting the next round on the build server."
+    "I'm starting the next round on the build server.",
+    "I'll start the next round now. Let me know if you want more phrases."
   ],
   "pass": [
     "Tell me when you're ready and I'll start recording.",
@@ -19,6 +20,8 @@
     "Nothing will make a sound before 08:00.",
     "I haven't started the training round: it needs your OK first.",
     "This happened because my final message said \"I'll start it now\" with no tool call behind it, and a turn that ends without a tool call stays ended.",
-    "The costliest was last night: I said \u201cI'll start item 1 now\u201d and nothing ran overnight."
+    "The costliest was last night: I said “I'll start item 1 now” and nothing ran overnight.",
+    "Send me the IP address & Port from the Wireless debugging screen. Then I'll connect and install.",
+    "Open each app on an empty chat first; I'll only look at the button labels. Once you've turned it on, send me the port."
   ]
 }
