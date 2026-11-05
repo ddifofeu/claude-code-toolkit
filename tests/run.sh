@@ -59,6 +59,21 @@ stop false | grep -q '"decision": "block"' && grep -q "promise-guard" "$home/.cl
     && ok "promise guard blocks once and logs" || bad "promise guard blocks once and logs"
 rm -rf "$home"
 
+# budget-scan: a test's time budget on the wall clock is flagged (JS and Python), CPU time and a
+# marked real wall-clock check are not.
+d=$(mktemp -d)
+printf 'const t0 = performance.now();\nwork();\nassert.ok(performance.now() - t0 < 2000);\n' > "$d/wall.test.mjs"
+printf 'start = time.perf_counter()\nwork()\nelapsed = time.perf_counter() - start\nassert elapsed < 2\n' > "$d/test_wall.py"
+printf 'const c0 = process.cpuUsage();\nwork();\nconst u = process.cpuUsage(c0);\nassert.ok((u.user + u.system) / 1000 < 2000);\n' > "$d/cpu.test.mjs"
+printf 'const t0 = Date.now();\nawait reply();\nassert.ok(Date.now() - t0 < 5000); // wall-clock-ok: a timeout\n' > "$d/marked.test.mjs"
+out=$(python3 bin/budget-scan.py "$d"); code=$?
+[ $code = 1 ] && echo "$out" | grep -q "wall.test.mjs:3" && echo "$out" | grep -q "test_wall.py:4" \
+    && ! echo "$out" | grep -q "cpu.test.mjs" && ! echo "$out" | grep -q "marked.test.mjs" \
+    && ok "budget-scan flags wall-clock budgets only" || bad "budget-scan: $out"
+rm -f "$d/wall.test.mjs" "$d/test_wall.py"
+python3 bin/budget-scan.py "$d" >/dev/null && ok "budget-scan passes clean tests" || bad "budget-scan on clean tests"
+rm -rf "$d"
+
 tests/sanitize.sh || fail=1
 
 [ $fail = 0 ] && echo "all passed" || { echo "failures"; exit 1; }
