@@ -11,37 +11,41 @@ the test's own CPU time instead:
 
     budget-scan.py [PATH ...]   scan test files (default: the current directory); exit 1 on a hit
 
-A hit is an assertion line that uses a wall-clock reading, directly or through a name assigned
-from one in the same file. Mark a line that really means the wall clock with `wall-clock-ok`.
+A hit is an assertion that bounds (<, >, Less, Greater) a wall-clock duration: a difference of
+clock readings, directly or through a name assigned from one in the same file. Mark a line that
+really means the wall clock with `wall-clock-ok`.
 """
 import re
 import sys
 from pathlib import Path
 
 WALL = re.compile(r"performance\.now\(\)|Date\.now\(\)|new Date\(\)\.getTime\(\)|time\.time\(\)|time\.perf_counter\(\)|time\.monotonic\(\)|time\.Now\(\)|time\.Since\(")
-ASSIGN = re.compile(r"(?:const|let|var)?\s*([A-Za-z_][A-Za-z0-9_]*)\s*:?=\s*[^=].*")
+ASSIGN = re.compile(r"(?:(?:const|let|var)\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*:?=\s*[^=]")
+BOUND = re.compile(r"<|>|\bLess|\bGreater|toBeLessThan|toBeGreaterThan|assertLess|assertGreater")
 ASSERT = re.compile(r"\bassert\w*\b|\bexpect\(|\bt\.(?:Error|Fatal)f?\(|\bself\.assert")
 TEST_FILE = re.compile(r"(^test_.*\.py$|.*_test\.(py|go)$|.*\.(test|spec)\.(m?js|cjs|ts|tsx)$)")
 
 
 def scan(path: Path):
     lines = path.read_text(errors="replace").splitlines()
-    names = set()
+    # Names read straight from a clock (t0 = performance.now()), then differences of them
+    # (elapsed = performance.now() - t0): only those carry a duration.
+    clock = set()
     for line in lines:
-        if WALL.search(line):
-            m = ASSIGN.search(line)
-            if m:
-                names.add(m.group(1))
-    # A name derived from a wall-clock name (elapsed = performance.now() - t0) counts too.
-    for _ in range(3):
-        for line in lines:
-            m = ASSIGN.search(line)
-            if m and any(re.search(rf"\b{re.escape(n)}\b", line.split("=", 1)[1]) for n in names):
-                names.add(m.group(1))
+        m = ASSIGN.match(line.strip())
+        if m and WALL.search(line.split("=", 1)[1]):
+            clock.add(m.group(1))
+    used = lambda text: WALL.search(text) or any(re.search(rf"\b{re.escape(n)}\b", text) for n in clock)
+    durations = set()
+    for line in lines:
+        m = ASSIGN.match(line.strip())
+        if m and "-" in line.split("=", 1)[1] and used(line.split("=", 1)[1]):
+            durations.add(m.group(1))
     for i, line in enumerate(lines, 1):
-        if "wall-clock-ok" in line or not ASSERT.search(line):
+        if "wall-clock-ok" in line or not ASSERT.search(line) or not BOUND.search(line):
             continue
-        if WALL.search(line) or any(re.search(rf"\b{re.escape(n)}\b", line) for n in names):
+        if (WALL.search(line) and "-" in line) or any(re.search(rf"\b{re.escape(n)}\b", line) for n in durations) \
+                or (any(re.search(rf"\b{re.escape(n)}\b", line) for n in clock) and WALL.search(line)):
             yield i, line.strip()
 
 
