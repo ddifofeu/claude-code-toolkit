@@ -146,5 +146,41 @@
  [
   0,
   "echo '(pkill)'"
+ ],
+ [
+  2,
+  "git commit --no-verify -m wip"
+ ],
+ [
+  2,
+  "git -c core.hooksPath=/dev/null commit -m x"
+ ],
+ [
+  2,
+  "cd repo && git push --no-verify origin main"
+ ],
+ [
+  2,
+  "git -c core.hooksPath= commit -qm x"
+ ],
+ [
+  2,
+  "ssh box 'git commit --no-verify -m x'"
+ ],
+ [
+  0,
+  "git commit -m \"never use --no-verify\""
+ ],
+ [
+  0,
+  "git config core.hooksPath .githooks"
+ ],
+ [
+  0,
+  "grep -n \"no-verify\" README.md"
+ ],
+ [
+  0,
+  "git commit -F - <<'MSG'\nwip: no --no-verify here\nMSG"
  ]
 ]
