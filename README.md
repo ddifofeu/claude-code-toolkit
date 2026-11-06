@@ -110,7 +110,8 @@ itself, so it only finds the actual programs.
 ## bash-guards.py
 
 A `PreToolUse` hook for Claude Code's Bash tool. Built in: it refuses `pkill`, `pgrep` and
-`killall` in command position, pointing to `procs.sh`. Quoted text and heredocs are ignored
+`killall` in command position (also after `if`, `while`, `until`, `!`, `(` or `{`, as in a
+wait loop), pointing to `procs.sh`. Quoted text and heredocs are ignored
 (commit messages, grep patterns, files written with `cat`), except what will run: `ssh HOST '...'`,
 `bash -c '...'`, heredocs fed to a shell. Add your own refusals to `EXTRA_RULES`, and a case to
 `bash-guards.cases.json` for each; `python3 hooks/bash-guards.py --test` checks them all.

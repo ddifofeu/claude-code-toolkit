@@ -17,10 +17,11 @@ import sys
 from pathlib import Path
 
 QUOTED = re.compile(r"'[^']*'|\"(?:\\.|[^\"\\])*\"")
-# The tool in command position: start, after a separator or $( / backtick, or after
-# xargs/sudo/exec/nohup/env/then/do/else or timeout N.
+# The tool in command position: start, after a separator, $( / backtick, a subshell or group
+# ( { or a negation !, or after xargs/sudo/exec/nohup/env/time, a shell keyword
+# (if/elif/then/else/while/until/do) or timeout N.
 PROCESS_TOOL = re.compile(
-    r"(?:^|[;&|`\n]|\$\(|\b(?:xargs|sudo|exec|nohup|env|then|do|else)\s|\btimeout\s+\S+\s)\s*(pkill|pgrep|killall)\b"
+    r"(?:^|[;&|`\n({!]|\$\(|\b(?:xargs|sudo|exec|nohup|env|time|if|elif|then|else|while|until|do)\s|\btimeout\s+\S+\s)\s*(pkill|pgrep|killall)\b"
 )
 # Quoted text that is itself run as a command.
 NESTED = re.compile(r"\b(?:ssh\b[^;&|\n'\"]*|(?:ba|z|da)?sh\s+(?:-\w+\s+)*-c\s+)('[^']*'|\"(?:\\.|[^\"\\])*\")")

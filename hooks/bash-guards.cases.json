@@ -102,5 +102,49 @@
  [
   2,
   "bash <<EOF\npgrep -c x\nEOF"
+ ],
+ [
+  2,
+  "while pgrep -f worker >/dev/null; do sleep 2; done"
+ ],
+ [
+  2,
+  "until ! pgrep -f x; do sleep 1; done"
+ ],
+ [
+  2,
+  "if pgrep -f x; then echo up; fi"
+ ],
+ [
+  2,
+  "if true; then :; elif pkill x; then :; fi"
+ ],
+ [
+  2,
+  "! pgrep x"
+ ],
+ [
+  2,
+  "(pkill -f x)"
+ ],
+ [
+  2,
+  "{ pgrep x; }"
+ ],
+ [
+  2,
+  "time pgrep x"
+ ],
+ [
+  0,
+  "while true; do ~/.claude/bin/procs.sh count x; sleep 2; done"
+ ],
+ [
+  0,
+  "if [ -n \"$pid\" ]; then echo \"while pgrep\"; fi"
+ ],
+ [
+  0,
+  "echo '(pkill)'"
  ]
 ]
