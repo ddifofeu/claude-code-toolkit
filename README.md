@@ -1,14 +1,52 @@
 # claude-code-toolkit
 
-Working rules and small tools that stop [Claude Code](https://claude.com/claude-code) sessions
-from repeating the same mistakes, for every project on a machine.
+Working rules and small guards for [Claude Code](https://claude.com/claude-code) that turn a
+repeated mistake into something checked, for every project on a machine.
+
+It is for people using Claude Code across several projects, who find that a correction made in one
+session doesn't carry over to the next. The approach is to prefer enforcement over reminders: when
+a mistake recurs, fix it with a test, a hook or a script that works every time, and keep the rules
+file short because it costs tokens in every session.
+
+## What is enforced, and what is only guidance
+
+| Strength | What | Example |
+|---|---|---|
+| **Blocked by a hook** | [`bash-guards.py`](hooks/bash-guards.py) refuses known-bad Bash commands and names the safe alternative | `pkill -f worker` can match the shell running it. Also refuses git commands that skip hooks |
+| **Sent back once by a hook** | [`promise-guard.py`](hooks/promise-guard.py) returns a turn that ends on a promise with nothing started | "I'll start it now" with no tool call |
+| **Checked at commit** | The [tracker](tracker/tracker.py) check, and the [sanitisation scan](tests/sanitize.sh) for repositories that use it | A fixed bug whose regression test was deleted |
+| **Run on demand** | [`budget-scan.py`](bin/budget-scan.py) | Tests that assert a wall-clock time budget |
+| **Guidance only** | [`CLAUDE.md`](CLAUDE.md), which Claude Code reads but nothing forces it to follow | "Match the effort to the problem" |
+
+Guards cover the patterns they list, and only commands that go through the Bash tool. They reduce
+known mistakes but can't prevent mistakes in general.
+
+## Status
+
+A small personal toolkit, started in November 2026 and still changing.
+
+- **Tests:** `tests/run.sh` passed on 2026-11-06 at commit `26ff68e` on Linux, including all 46 guard
+  cases. macOS is intended but has no recorded test run.
+- **Effect:** guards log their blocks locally for pruning. The repository publishes no figures on
+  how often they fire or how many mistakes they prevent.
+
+## Install
+
+Read [`install.sh`](install.sh) and [`sync.sh`](sync.sh) first. They change your Claude Code
+configuration, and the hooks run in every session.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ddifofeu/claude-code-toolkit/main/install.sh | bash
 ```
 
 Or clone and run `./install.sh`. To keep your own version in sync, fork it and run
-`TOOLKIT_REPO=you/your-fork ./install.sh`. Needs `bash`, `python3` and `curl` (Linux or macOS).
+`TOOLKIT_REPO=you/your-fork ./install.sh`. Needs `bash`, `python3` and `curl`.
+
+**Updates are automatic and unpinned.** At the start of each session, a hook fetches the toolkit's
+files from the `main` branch of the source repository and replaces the installed copies, including
+`CLAUDE.md` and the hook scripts. Local edits to those files are overwritten without a backup, and
+updates aren't reviewed first. Install from a fork you control if you want to decide when changes
+arrive.
 
 ## Claude Code on the web
 
@@ -48,7 +86,7 @@ the rules from step 1.
 
 It also adds three hooks to `~/.claude/settings.json`, keeping everything already there (a backup is
 written first): `SessionStart` runs the sync, `PreToolUse` on Bash runs the guard, `Stop` runs the promise guard. Running the
-installer again changes nothing. To remove: delete the three hooks (or use `/hooks`) and the files.
+installer again doesn't duplicate the hooks; it only adds another dated settings backup. To remove: delete the three hooks (or use `/hooks`) and the files.
 
 ## The rules (`CLAUDE.md`)
 
@@ -149,7 +187,14 @@ exist, or names a test the file no longer contains, so a deleted test can't slip
 ## Tests
 
 `tests/run.sh` checks the guard cases and its hit log, `procs.sh` against itself, the tracker's
-rejections, the pre-commit framework hook, and the sanitisation scan.
+rejections, the pre-commit framework hook, the web-session repo hook, the promise guard, `budget-scan`
+and the sanitisation scan.
+
+## How this was built
+
+Every rule so far came from a failure I saw in my own Claude Code sessions. Development is
+AI-assisted: most commits carry a Claude co-author trailer. The tools are plain `bash` and `python3`,
+and they build on Claude Code's hooks and settings.
 
 ## Licence
 
