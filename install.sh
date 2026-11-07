@@ -11,7 +11,7 @@
 # ~/.claude/settings.json, keeping all else (backup first): SessionStart refreshes the files from
 # GitHub; PreToolUse (Bash) runs the guard and the heavy-step guard (which allows everything until
 # ~/.claude/heavy-guard.json exists); Stop runs the promise guard.
-# Running it again changes nothing.
+# Running it again changes nothing already installed; it adds what a newer toolkit brings.
 set -euo pipefail
 SOURCE=${TOOLKIT_REPO:-ddifofeu/claude-code-toolkit}
 command -v python3 >/dev/null || { echo "python3 is needed" >&2; exit 1; }

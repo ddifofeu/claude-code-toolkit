@@ -26,8 +26,8 @@ known mistakes but can't prevent mistakes in general.
 
 A small personal toolkit, started in November 2026 and still changing.
 
-- **Tests:** `tests/run.sh` passed on 2026-11-06 at commit `26ff68e` on Linux, including all 46 guard
-  cases. macOS is intended but has no recorded test run.
+- **Tests:** `tests/run.sh` passed on 2026-11-07 at commit `61a858e` plus this fix on Linux (33 checks), including all 46 bash-guard
+  cases and 19 heavy-guard cases. macOS is intended but has no recorded test run.
 - **Effect:** guards log their blocks locally for pruning. The repository publishes no figures on
   how often they fire or how many mistakes they prevent.
 

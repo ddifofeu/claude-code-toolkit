@@ -108,7 +108,7 @@ bin/procs.sh kill "$m-" >/dev/null 2>&1; rm -rf "$d"
 # file, the peer from an `ssh` on PATH answering from a file ("hang" sleeps, "down" fails).
 python3 hooks/heavy-guard.py --test >/dev/null && ok "heavy guard cases" || bad "heavy guard cases: $(python3 hooks/heavy-guard.py --test)"
 hg=$(mktemp -d); mkdir -p "$hg/bin" "$hg/home/.claude" "$hg/wt/sub"
-printf '#!/bin/bash\necho x >> %s/ssh-calls\na=$(cat %s/peer)\n[ "$a" = hang ] && exec sleep 30\n[ "$a" = down ] && exit 255\nprintf "%%s\\n" $a\n' "$hg" "$hg" > "$hg/bin/ssh"
+printf '#!/bin/bash\necho x >> %s/ssh-calls\na=$(cat %s/peer)\n[ "$a" = hang ] && exec sleep 31.7\n[ "$a" = down ] && exit 255\nprintf "%%s\\n" $a\n' "$hg" "$hg" > "$hg/bin/ssh"
 chmod 755 "$hg/bin/ssh"
 hgrig() {  # hgrig LOAD PEER-ANSWER: a fresh state, the example config installed
     echo "$1 1.00 1.00 1/100 1" > "$hg/loadavg"; echo "$2" > "$hg/peer"
@@ -163,7 +163,7 @@ hgrig 20 hang
 echo '{"tool_input":{"command":"npm test"},"cwd":"/"}' > "$hg/payload"   # (supervise.sh gives the job no stdin)
 hang() { env -u HEAVY_LOCAL PATH="$hg/bin:$PATH" HOME="$hg/home" HEAVY_GUARD_LOADAVG="$hg/loadavg" HEAVY_GUARD_CORES=32 \
     bin/supervise.sh --deadline 3 -- bash -c 'python3 hooks/heavy-guard.py < "$1"' _ "$hg/payload" 2>/dev/null; echo $?; }
-[ "$(hang)" = 0 ] && [ "$(hang)" = 0 ] && [ "$(hgcalls)" = 1 ] && ! bin/procs.sh count "sleep 30" >/dev/null \
+[ "$(hang)" = 0 ] && [ "$(hang)" = 0 ] && [ "$(hgcalls)" = 1 ] && ! bin/procs.sh count "sleep 31.7" >/dev/null \
     && ok "heavy guard: a hanging peer is cut off, once" || bad "heavy guard hanging peer ($(hgcalls) probes)"
 rm -rf "$hg"
 
