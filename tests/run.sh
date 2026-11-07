@@ -77,6 +77,19 @@ rm -f "$d/wall.test.mjs" "$d/test_wall.py"
 python3 bin/budget-scan.py "$d" >/dev/null && ok "budget-scan passes clean tests" || bad "budget-scan on clean tests"
 rm -rf "$d"
 
+# supervise.sh: the job's code passes through; past the deadline 124; nothing of it outlives it, a
+# detached (setsid) grandchild included; a TERM to the supervisor takes the job down too.
+m="supervise-test-$$"
+bin/supervise.sh -- bash -c 'exit 3'; [ $? = 3 ] && ok "supervise: exit code" || bad "supervise: exit code"
+d=$(mktemp -d)
+bin/supervise.sh --deadline 1 --exit "$d/x" -- bash -c "setsid python3 -c \"import time; time.sleep(60)\" $m-a & python3 -c \"import time; time.sleep(60)\" $m-b"; c=$?
+[ $c = 124 ] && read -r e _ < "$d/x" && [ "$e" = 124 ] && ok "supervise: deadline 124, exit file" || bad "supervise: deadline ($c)"
+bin/procs.sh count "$m-[ab]" >/dev/null && bad "supervise: left $(bin/procs.sh list "$m-[ab]")" || ok "supervise: nothing left, detached child included"
+bin/supervise.sh -- bash -c "setsid python3 -c \"import time; time.sleep(60)\" $m-c & python3 -c \"import time; time.sleep(60)\" $m-d" & s=$!
+sleep 0.5; kill -TERM $s; wait $s; c=$?
+[ $c = 143 ] && ! bin/procs.sh count "$m-[cd]" >/dev/null && ok "supervise: TERM takes the job down" || bad "supervise: TERM ($c)"
+bin/procs.sh kill "$m-" >/dev/null 2>&1; rm -rf "$d"
+
 tests/sanitize.sh || fail=1
 
 [ $fail = 0 ] && echo "all passed" || { echo "failures"; exit 1; }

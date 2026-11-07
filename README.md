@@ -15,7 +15,7 @@ file short because it costs tokens in every session.
 | **Blocked by a hook** | [`bash-guards.py`](hooks/bash-guards.py) refuses known-bad Bash commands and names the safe alternative | `pkill -f worker` can match the shell running it. Also refuses git commands that skip hooks |
 | **Sent back once by a hook** | [`promise-guard.py`](hooks/promise-guard.py) returns a turn that ends on a promise with nothing started | "I'll start it now" with no tool call |
 | **Checked at commit** | The [tracker](tracker/tracker.py) check, and the [sanitisation scan](tests/sanitize.sh) for repositories that use it | A fixed bug whose regression test was deleted |
-| **Run on demand** | [`budget-scan.py`](bin/budget-scan.py) | Tests that assert a wall-clock time budget |
+| **Run on demand** | [`budget-scan.py`](bin/budget-scan.py), [`supervise.sh`](bin/supervise.sh) | Tests that assert a wall-clock time budget |
 | **Guidance only** | [`CLAUDE.md`](CLAUDE.md), which Claude Code reads but nothing forces it to follow | "Match the effort to the problem" |
 
 Guards cover the patterns they list, and only commands that go through the Bash tool. They reduce
@@ -80,6 +80,7 @@ the rules from step 1.
 | `bin/procs.sh` | Find or stop processes by command line without ever matching the caller |
 | `hooks/bash-guards.py` | Refuses commands that are known to go wrong, naming the safe alternative: pkill/pgrep/killall (they match their own caller), and git skipping its hooks (`--no-verify`, `-c core.hooksPath=`) |
 | `hooks/promise-guard.py` | Sends a turn back once when it ends on "I'll start it now" with nothing started: a turn only restarts on your message or a background job's notification (not when the message asks you for what the work needs, or the turn set a timer or a background job) |
+| `bin/supervise.sh` | Runs a job so nothing of it outlives it: its own process group, an optional deadline (exit 124), and on any ending kills the group and every process still marked in its environment (a detached headless browser included); `--exit FILE` is written only once nothing is left |
 | `bin/budget-scan.py` | Flags tests that assert a time budget on the wall clock: runners that run files side by side make them fail at random; measure the test's CPU time instead (`process.cpuUsage()`, `time.process_time()`) |
 | `tracker/tracker.py`, `tracker/pre-commit` | A bug and change tracker to copy into a project, with its commit check |
 | `hooks/sync-toolkit.sh` | Refreshes these files from GitHub at the start of each session |

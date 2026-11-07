@@ -6,7 +6,7 @@
 #   TOOLKIT_REPO=you/your-fork ./install.sh   # keep your own copy in sync instead
 #
 # Puts in ~/.claude: CLAUDE.md (the working rules; an existing one is kept as CLAUDE.md.bak-*),
-# bin/procs.sh, bin/budget-scan.py, hooks/bash-guards.py, tracker/tracker.py and tracker/pre-commit, and the sync
+# bin/procs.sh, bin/supervise.sh, bin/budget-scan.py, hooks/bash-guards.py, tracker/tracker.py and tracker/pre-commit, and the sync
 # script. Adds two hooks to ~/.claude/settings.json, keeping all else (backup first):
 # SessionStart refreshes the files from GitHub; PreToolUse (Bash) runs the guard; Stop runs the
 # promise guard.
@@ -25,6 +25,7 @@ if [ -n "$here" ] && [ -f "$here/hooks/bash-guards.py" ]; then   # from a clone
     fi
     cp "$here/CLAUDE.md" ~/.claude/CLAUDE.md
     install -m 755 "$here/bin/procs.sh" ~/.claude/bin/procs.sh
+    install -m 755 "$here/bin/supervise.sh" ~/.claude/bin/supervise.sh
     install -m 755 "$here/bin/budget-scan.py" ~/.claude/bin/budget-scan.py
     install -m 755 "$here/hooks/bash-guards.py" ~/.claude/hooks/bash-guards.py
     install -m 644 "$here/hooks/bash-guards.cases.json" ~/.claude/hooks/bash-guards.cases.json
@@ -39,7 +40,7 @@ else                                                          # piped from curl
     chmod 755 ~/.claude/hooks/sync-toolkit.sh
     bash ~/.claude/hooks/sync-toolkit.sh
 fi
-for f in CLAUDE.md bin/procs.sh bin/budget-scan.py hooks/bash-guards.py hooks/promise-guard.py tracker/tracker.py; do
+for f in CLAUDE.md bin/procs.sh bin/supervise.sh bin/budget-scan.py hooks/bash-guards.py hooks/promise-guard.py tracker/tracker.py; do
     [ -s ~/.claude/$f ] || { echo "missing ~/.claude/$f" >&2; exit 1; }
 done
 
