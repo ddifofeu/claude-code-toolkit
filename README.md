@@ -13,6 +13,7 @@ file short because it costs tokens in every session.
 | Strength | What | Example |
 |---|---|---|
 | **Blocked by a hook** | [`bash-guards.py`](hooks/bash-guards.py) refuses known-bad Bash commands and names the safe alternative | `pkill -f worker` can match the shell running it. Also refuses git commands that skip hooks |
+| **Blocked by a hook, when configured** | [`heavy-guard.py`](hooks/heavy-guard.py) refuses a heavy step (a release build, a full test suite) while this machine is busy and a peer is idle, naming the line that runs it there | `cargo test --release` at load 20 on 32 cores while a build machine idles. Off until `~/.claude/heavy-guard.json` exists |
 | **Sent back once by a hook** | [`promise-guard.py`](hooks/promise-guard.py) returns a turn that ends on a promise with nothing started | "I'll start it now" with no tool call |
 | **Checked at commit** | The [tracker](tracker/tracker.py) check, and the [sanitisation scan](tests/sanitize.sh) for repositories that use it | A fixed bug whose regression test was deleted |
 | **Run on demand** | [`budget-scan.py`](bin/budget-scan.py), [`supervise.sh`](bin/supervise.sh) | Tests that assert a wall-clock time budget |
@@ -79,15 +80,18 @@ the rules from step 1.
 | `CLAUDE.md` | The working rules Claude Code reads in every session (an existing file is kept as `CLAUDE.md.bak-*`) |
 | `bin/procs.sh` | Find or stop processes by command line without ever matching the caller |
 | `hooks/bash-guards.py` | Refuses commands that are known to go wrong, naming the safe alternative: pkill/pgrep/killall (they match their own caller), and git skipping its hooks (`--no-verify`, `-c core.hooksPath=`) |
+| `hooks/heavy-guard.py` | Refuses a heavy step while this machine is busy and a peer you name is idle, with the command that runs it there; allows everything until you write `~/.claude/heavy-guard.json` (see [heavy-guard.py](#heavy-guardpy)) |
 | `hooks/promise-guard.py` | Sends a turn back once when it ends on "I'll start it now" with nothing started: a turn only restarts on your message or a background job's notification (not when the message asks you for what the work needs, or the turn set a timer or a background job) |
 | `bin/supervise.sh` | Runs a job so nothing of it outlives it: its own process group, an optional deadline (exit 124), and on any ending kills the group and every process still marked in its environment (a detached headless browser included); `--exit FILE` is written only once nothing is left |
 | `bin/budget-scan.py` | Flags tests that assert a time budget on the wall clock: runners that run files side by side make them fail at random; measure the test's CPU time instead (`process.cpuUsage()`, `time.process_time()`) |
 | `tracker/tracker.py`, `tracker/pre-commit` | A bug and change tracker to copy into a project, with its commit check |
 | `hooks/sync-toolkit.sh` | Refreshes these files from GitHub at the start of each session |
 
-It also adds three hooks to `~/.claude/settings.json`, keeping everything already there (a backup is
-written first): `SessionStart` runs the sync, `PreToolUse` on Bash runs the guard, `Stop` runs the promise guard. Running the
-installer again doesn't duplicate the hooks; it only adds another dated settings backup. To remove: delete the three hooks (or use `/hooks`) and the files.
+It also adds four hooks to `~/.claude/settings.json`, keeping everything already there (a backup is
+written first): `SessionStart` runs the sync, `PreToolUse` on Bash runs the guard and the heavy-step
+guard, `Stop` runs the promise guard. Running the installer again doesn't duplicate the hooks (and
+adds one a newer toolkit brought); it only adds another dated settings backup. To remove: delete the
+four hooks (or use `/hooks`) and the files.
 
 ## The rules (`CLAUDE.md`)
 
@@ -155,6 +159,55 @@ wait loop), pointing to `procs.sh`. Quoted text and heredocs are ignored
 `bash -c '...'`, heredocs fed to a shell. Add your own refusals to `EXTRA_RULES`, and a case to
 `bash-guards.cases.json` for each; `python3 hooks/bash-guards.py --test` checks them all.
 
+## heavy-guard.py
+
+A `PreToolUse` hook for Bash, for people with a second machine. An agent runs the release build or
+the whole test suite on the machine it sits on, even when that one is loaded and another is idle.
+The guard refuses such a step (exit 2) only when all hold: the command runs a heavy step here (a
+pattern from the config, in command position; quoted text, text heredocs and `ssh HOST '...'`
+don't count); this machine, with the step's threads added, is over `busy` per core
+((load1 + threads) / cores); and a peer is under `idle` per core. The message names the line that
+runs it on that peer, and `HEAVY_LOCAL=1 <command>` to run it here anyway.
+
+Allowed: no config (the default: the hook does nothing), `HEAVY_LOCAL=1` in the command or the
+environment, a command that matches `runner` (already going elsewhere) or runs inside `ssh`, light
+commands, no peer answering. A leading `cd DIR &&` is where the step runs (`{dir}`). Peers are
+probed only when this machine is busy, all at once, 1.5 s at most in total; their loads (or their
+silence) are cached for 60 s in `~/.claude/heavy-guard-load.json`. Each block is logged like the
+other guards'. Hooks fire only for Claude's Bash tool calls, so a git hook's test run isn't guarded.
+
+`~/.claude/heavy-guard.json` (the example from
+[`heavy-guard.cases.json`](hooks/heavy-guard.cases.json); `python3 hooks/heavy-guard.py --test`
+checks its patterns against the cases there):
+
+```json
+{
+  "heavy": [
+    {"name": "cargo-release", "threads": 16, "pattern": "cargo\\s+(?:\\+\\S+\\s+)?(?:test|build|bench)\\b[^;&|\\n]*\\s--release\\b"},
+    {"name": "make-parallel", "threads": 8, "pattern": "make\\b[^;&|\\n]*\\s-j"},
+    {"name": "npm-test", "threads": 8, "pattern": "npm\\s+(?:run\\s+)?test(?![:\\w-])"},
+    {"name": "pytest", "threads": 8, "pattern": "(?:python3?\\s+-m\\s+)?pytest\\b"}
+  ],
+  "peers": ["build-box"],
+  "run_elsewhere": "ssh {host} 'cd {dir} && {command}'",
+  "runner": "\\bmy-runner\\b",
+  "busy": 0.6,
+  "idle": 0.25
+}
+```
+
+- `heavy`: a regular expression for each heavy step (matched where a command starts) and the threads
+  it takes.
+- `peers`: hosts probed with `ssh -o BatchMode=yes HOST` reading `/proc/loadavg` and `nproc` (Linux).
+  Or `probe`: a command that prints `HOST LOAD CORES` lines (another OS, or a scheduler of your own).
+- `run_elsewhere`: the line the message names. `{host}`, `{dir}`, `{threads}`, and `{command}` as
+  written, so the example assumes it has no single quotes; `{remote}` is `cd DIR && COMMAND` quoted
+  as one shell word (the default is `ssh {host} {remote}`). The peer needs the same directory, or
+  name your own runner here.
+- `runner`: a regular expression for commands that already run elsewhere (your runner).
+- `busy`, `idle`: per-core thresholds, 0.6 and 0.25 by default. Busy counts the step's own threads:
+  at load 10 on 32 cores a machine is at 0.31 before a 16-thread build, 0.81 with it.
+
 ## The tracker
 
 Copy `tracker/tracker.py` to `tools/tracker.py` and `tracker/pre-commit` to `.githooks/pre-commit`
@@ -188,8 +241,13 @@ exist, or names a test the file no longer contains, so a deleted test can't slip
 ## Tests
 
 `tests/run.sh` checks the guard cases and its hit log, `procs.sh` against itself, the tracker's
-rejections, the pre-commit framework hook, the web-session repo hook, the promise guard, `budget-scan`
-and the sanitisation scan.
+rejections, the pre-commit framework hook, the web-session repo hook, the promise guard, `budget-scan`,
+the heavy-step guard (with a fake `ssh` and load, no other machine) and the sanitisation scan.
+
+Tests that run from a git pre-commit hook inherit `GIT_DIR` and `GIT_INDEX_FILE`, so their own git
+calls, even `git -C other-dir`, act on the repository being committed: a test's `git init/add/commit`
+in a temporary folder wrote its files into the caller's index and commits onto its branch. Clear
+those variables at the top of such tests and in the tools they spawn; `tests/run.sh` does.
 
 ## How this was built
 

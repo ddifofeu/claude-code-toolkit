@@ -1,0 +1,35 @@
+{
+ "_comment": "The README's example config, plus cases: 2 = a heavy step run here, 0 = not. python3 heavy-guard.py --test",
+ "heavy": [
+  {"name": "cargo-release", "threads": 16, "pattern": "cargo\\s+(?:\\+\\S+\\s+)?(?:test|build|bench)\\b[^;&|\\n]*\\s--release\\b"},
+  {"name": "make-parallel", "threads": 8, "pattern": "make\\b[^;&|\\n]*\\s-j"},
+  {"name": "npm-test", "threads": 8, "pattern": "npm\\s+(?:run\\s+)?test(?![:\\w-])"},
+  {"name": "pytest", "threads": 8, "pattern": "(?:python3?\\s+-m\\s+)?pytest\\b"}
+ ],
+ "peers": ["build-box"],
+ "run_elsewhere": "ssh {host} 'cd {dir} && {command}'",
+ "runner": "\\bmy-runner\\b",
+ "busy": 0.6,
+ "idle": 0.25,
+ "cases": [
+  [2, "cargo test --release"],
+  [2, "cd kernel && cargo build --release"],
+  [2, "(cd kernel && cargo test --release) && echo done"],
+  [2, "timeout 900 npm test 2>&1 | tail -5"],
+  [2, "CI=1 npm test"],
+  [2, "make -j16 all"],
+  [2, "python3 -m pytest tests"],
+  [2, "bash -c 'npm test'"],
+  [2, "cat > x <<'EOF'\ntext\nEOF\nnpm test"],
+  [0, "ls -la"],
+  [0, "cargo test"],
+  [0, "npm run test:unit"],
+  [0, "npm run build"],
+  [0, "make"],
+  [0, "git commit -m 'npm test passes'"],
+  [0, "git commit -F - <<'EOF'\nnpm test, cargo test --release\nEOF"],
+  [0, "grep -n 'npm test' README.md"],
+  [0, "echo cargo test --release is heavy"],
+  [0, "ssh build-box 'cd x && cargo test --release'"]
+ ]
+}

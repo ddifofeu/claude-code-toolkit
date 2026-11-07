@@ -3,7 +3,7 @@
 # in ~/.claude/toolkit-source, set by install.sh). Run by a SessionStart hook; offline it keeps
 # the installed copies. It never fails a session.
 SOURCE=$(cat ~/.claude/toolkit-source 2>/dev/null || echo ddifofeu/claude-code-toolkit)
-FILES="CLAUDE.md bin/procs.sh bin/budget-scan.py hooks/bash-guards.py hooks/bash-guards.cases.json hooks/promise-guard.py hooks/promise-guard.cases.json tracker/tracker.py tracker/pre-commit sync.sh"
+FILES="CLAUDE.md bin/procs.sh bin/budget-scan.py hooks/bash-guards.py hooks/bash-guards.cases.json hooks/promise-guard.py hooks/promise-guard.cases.json hooks/heavy-guard.py hooks/heavy-guard.cases.json tracker/tracker.py tracker/pre-commit sync.sh"
 fetch() {  # fetch PATH > out: raw file from the default branch
     curl -fsSL --max-time 10 "https://raw.githubusercontent.com/$SOURCE/main/$1" 2>/dev/null ||
         { command -v gh >/dev/null && timeout 10 gh api "repos/$SOURCE/contents/$1" -H "Accept: application/vnd.github.raw" 2>/dev/null; }

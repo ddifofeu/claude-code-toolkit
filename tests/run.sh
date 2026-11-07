@@ -1,6 +1,9 @@
 #!/bin/bash
 # tests/run.sh: the toolkit's own regression tests. Run before every commit.
 set -u
+# Run from a git hook, git's variables point at the committing repository: the tests' own git calls
+# (git -C "$repo" init/add/commit) would act on it. Each git call here names its folder instead.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_PREFIX
 cd "$(dirname "$0")/.."
 fail=0
 ok() { echo "ok    $1"; }
@@ -100,6 +103,69 @@ bin/supervise.sh -- bash -c "setsid python3 -c \"import time; time.sleep(60)\" $
 sleep 0.5; kill -TERM $s; wait $s; c=$?
 [ $c = 143 ] && ! bin/procs.sh count "$m-[cd]" >/dev/null && ok "supervise: TERM takes the job down" || bad "supervise: TERM ($c)"
 bin/procs.sh kill "$m-" >/dev/null 2>&1; rm -rf "$d"
+
+# The heavy-step guard: its cases; then against fakes, no other machine: this machine's load from a
+# file, the peer from an `ssh` on PATH answering from a file ("hang" sleeps, "down" fails).
+python3 hooks/heavy-guard.py --test >/dev/null && ok "heavy guard cases" || bad "heavy guard cases: $(python3 hooks/heavy-guard.py --test)"
+hg=$(mktemp -d); mkdir -p "$hg/bin" "$hg/home/.claude" "$hg/wt/sub"
+printf '#!/bin/bash\necho x >> %s/ssh-calls\na=$(cat %s/peer)\n[ "$a" = hang ] && exec sleep 30\n[ "$a" = down ] && exit 255\nprintf "%%s\\n" $a\n' "$hg" "$hg" > "$hg/bin/ssh"
+chmod 755 "$hg/bin/ssh"
+hgrig() {  # hgrig LOAD PEER-ANSWER: a fresh state, the example config installed
+    echo "$1 1.00 1.00 1/100 1" > "$hg/loadavg"; echo "$2" > "$hg/peer"
+    rm -f "$hg/ssh-calls" "$hg/home/.claude/heavy-guard-load.json" "$hg/home/.claude/toolkit-hits.log"
+    python3 -c 'import json,sys; c=json.load(open(sys.argv[1])); c.pop("cases"); json.dump(c, open(sys.argv[2], "w"))' \
+        hooks/heavy-guard.cases.json "$hg/home/.claude/heavy-guard.json"
+}
+hgrun() {  # hgrun COMMAND [ENV=VALUE...]: the hook's exit code; its message in $hg/err
+    local c=$1; shift
+    python3 -c 'import json,sys; print(json.dumps({"tool_input": {"command": sys.argv[1]}, "cwd": sys.argv[2]}))' "$c" "$hg/wt" |
+        env -u HEAVY_LOCAL PATH="$hg/bin:$PATH" HOME="$hg/home" HEAVY_GUARD_LOADAVG="$hg/loadavg" HEAVY_GUARD_CORES=32 "$@" \
+        python3 hooks/heavy-guard.py 2>"$hg/err"; echo $?
+}
+hgcalls() { [ -f "$hg/ssh-calls" ] && wc -l < "$hg/ssh-calls" | tr -d ' ' || echo 0; }
+# Busy here (20 + 16 threads on 32 cores) and the peer idle: blocked, the line that runs it there
+# named, the block logged.
+hgrig 20 "0.10 16"
+[ "$(hgrun "cargo test --release")" = 2 ] && grep -qF "build-box sits at 0.01" "$hg/err" \
+    && grep -qF "ssh build-box 'cd $hg/wt && cargo test --release'" "$hg/err" \
+    && grep -qF "HEAVY_LOCAL=1 cargo test --release" "$hg/err" \
+    && grep -q "	heavy-guard	cargo-release$" "$hg/home/.claude/toolkit-hits.log" \
+    && ok "heavy guard: busy here, peer idle: blocked with the line, logged" || bad "heavy guard block: $(cat "$hg/err")"
+# A leading cd decides the directory.
+[ "$(hgrun "cd sub && npm test")" = 2 ] && grep -qF "ssh build-box 'cd $hg/wt/sub && npm test'" "$hg/err" \
+    && ok "heavy guard: a leading cd is where it runs" || bad "heavy guard leading cd: $(cat "$hg/err")"
+# This machine with room: allowed, and the peer isn't asked.
+hgrig 1 "0.10 16"
+[ "$(hgrun "cargo test --release")" = 0 ] && [ "$(hgcalls)" = 0 ] \
+    && ok "heavy guard: room here: allowed, no probe" || bad "heavy guard idle local ($(hgcalls) probes)"
+# The override, in the command or the environment.
+hgrig 20 "0.10 16"
+[ "$(hgrun "HEAVY_LOCAL=1 npm test")" = 0 ] && [ "$(hgrun "export HEAVY_LOCAL=1; cargo test --release")" = 0 ] \
+    && [ "$(hgrun "npm test" HEAVY_LOCAL=1)" = 0 ] && ok "heavy guard: HEAVY_LOCAL=1 allows" || bad "heavy guard override"
+# Already elsewhere: through the configured runner, or inside ssh HOST '...'.
+[ "$(hgrun "my-runner -- npm test")" = 0 ] && [ "$(hgrun "ssh build-box 'cargo test --release'")" = 0 ] \
+    && ok "heavy guard: via the runner or ssh: allowed" || bad "heavy guard runner/ssh"
+# Light commands and text that only names a heavy step.
+r=0; for c in "ls -la" "cargo test" "npm run build" "git commit -m 'npm test passes'" "echo npm test"; do
+    [ "$(hgrun "$c")" = 0 ] || r=1; done
+[ $r = 0 ] && ok "heavy guard: light commands allowed" || bad "heavy guard light commands"
+# No config at all: everything allowed, nothing probed.
+rm "$hg/home/.claude/heavy-guard.json"
+[ "$(hgrun "cargo test --release")" = 0 ] && [ "$(hgcalls)" = 0 ] \
+    && ok "heavy guard: no config: allowed, no probe" || bad "heavy guard without config"
+# The peer unreachable: allowed.
+hgrig 20 down
+[ "$(hgrun "npm test")" = 0 ] && ok "heavy guard: peer unreachable: allowed" || bad "heavy guard peer down"
+# A peer that hangs: the probe is bounded (a timeout check, not a time budget: supervise.sh's
+# deadline of 3 s against the guard's 1.5 s), nothing of it outlives the hook, and its silence is
+# cached (one probe for two commands).
+hgrig 20 hang
+echo '{"tool_input":{"command":"npm test"},"cwd":"/"}' > "$hg/payload"   # (supervise.sh gives the job no stdin)
+hang() { env -u HEAVY_LOCAL PATH="$hg/bin:$PATH" HOME="$hg/home" HEAVY_GUARD_LOADAVG="$hg/loadavg" HEAVY_GUARD_CORES=32 \
+    bin/supervise.sh --deadline 3 -- bash -c 'python3 hooks/heavy-guard.py < "$1"' _ "$hg/payload" 2>/dev/null; echo $?; }
+[ "$(hang)" = 0 ] && [ "$(hang)" = 0 ] && [ "$(hgcalls)" = 1 ] && ! bin/procs.sh count "sleep 30" >/dev/null \
+    && ok "heavy guard: a hanging peer is cut off, once" || bad "heavy guard hanging peer ($(hgcalls) probes)"
+rm -rf "$hg"
 
 tests/sanitize.sh || fail=1
 
