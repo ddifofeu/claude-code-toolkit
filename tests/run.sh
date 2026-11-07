@@ -35,6 +35,17 @@ for broken in "002 NoTest fixed - - abc" "003 MissingTest fixed - tests/nope.py 
     rm "$repo/tracker/T-${broken%% *}-x.md"
 done
 
+# A new entry's number skips those used on other branches and in other worktrees (two branches
+# worked side by side handed out the same number).
+r2=$(mktemp -d); git -C "$r2" init -q; git -C "$r2" config user.email t@t; git -C "$r2" config user.name t
+mkdir -p "$r2/tracker"; entry2() { printf '# T-%s x\nkind: bug\nstatus: open\nreported: 2026-01-01, t\nblocker: -\ntest: -\nfixed-in: -\n' "$1" > "$2/tracker/T-$1-x.md"; }
+entry2 001 "$r2"; git -C "$r2" add -A; git -C "$r2" commit -qm a
+git -C "$r2" checkout -qb side; entry2 004 "$r2"; git -C "$r2" add -A; git -C "$r2" commit -qm b; git -C "$r2" checkout -q -
+git -C "$r2" worktree add -q "$r2-wt" -b other 2>/dev/null; entry2 006 "$r2-wt"
+out=$(cd "$r2" && python3 "$OLDPWD/tracker/tracker.py" new bug "Next" t)
+[ "${out#tracker/T-007}" != "$out" ] && ok "tracker: new number past other branches and worktrees" || bad "tracker numbering: $out"
+rm -rf "$r2" "$r2-wt"
+
 # The guard logs each block (for pruning guards that never fire), and never fails without a log.
 home=$(mktemp -d); mkdir -p "$home/.claude"
 echo '{"tool_input":{"command":"pkill -f x"}}' | HOME=$home python3 hooks/bash-guards.py 2>/dev/null

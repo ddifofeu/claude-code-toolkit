@@ -6,7 +6,8 @@
     tracker.py check              fails on a bad entry (run it before every commit)
 
 It works on the git repository of the current directory. IDs are PREFIX-NNN; the prefix comes
-from TRACKER_PREFIX, else from the existing entries, else "T".
+from TRACKER_PREFIX, else from the existing entries, else "T". A new number is past every one used
+on any local branch and in any worktree, so branches worked on side by side never share one.
 
 An entry starts with a header block:
 
@@ -109,10 +110,22 @@ def show(statuses: list[str]) -> None:
         print(f"{e['id']}  {e.get('status', '?'):<11} {e.get('kind', '?'):<6} {e['title']}{flag}{extra}")
 
 
+def taken_elsewhere() -> list[int]:
+    """Numbers used on any local branch or in any worktree's tracker/ (committed or not), so two
+    branches worked on side by side never hand out the same one."""
+    git = lambda *a: subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, text=True).stdout
+    names = git("for-each-ref", "--format=%(refname)", "refs/heads").split()
+    found = [n for ref in names for n in git("ls-tree", "--name-only", ref, "tracker/").split()]
+    for line in git("worktree", "list", "--porcelain").splitlines():
+        if line.startswith("worktree "):
+            found += [str(f) for f in (Path(line[9:]) / "tracker").glob("*.md")]
+    return [int(m.group(1)) for f in found if (m := re.search(r"-(\d{3,})-[^/]*\.md$", f))]
+
+
 def new(kind: str, title: str, who: str) -> None:
     known = [e["id"] for e in entries() if e["id"]]
     prefix = os.environ.get("TRACKER_PREFIX") or (known[0].rsplit("-", 1)[0] if known else "T")
-    n = max([int(i.rsplit("-", 1)[1]) for i in known] or [0]) + 1
+    n = max([int(i.rsplit("-", 1)[1]) for i in known] + taken_elsewhere() + [0]) + 1
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:50]
     DIR.mkdir(exist_ok=True)
     path = DIR / f"{prefix}-{n:03d}-{slug}.md"

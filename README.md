@@ -161,7 +161,7 @@ Copy `tracker/tracker.py` to `tools/tracker.py` and `tracker/pre-commit` to `.gi
 in a project, then `git config core.hooksPath .githooks`.
 
 ```bash
-python3 tools/tracker.py new bug "Login fails after timeout" owner
+python3 tools/tracker.py new bug "Login fails after timeout" owner   # numbered past every branch and worktree
 python3 tools/tracker.py list            # open work; reopened entries first
 python3 tools/tracker.py check           # run by the pre-commit hook
 ```
