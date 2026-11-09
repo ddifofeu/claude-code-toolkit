@@ -167,6 +167,22 @@ hang() { env -u HEAVY_LOCAL PATH="$hg/bin:$PATH" HOME="$hg/home" HEAVY_GUARD_LOA
     && ok "heavy guard: a hanging peer is cut off, once" || bad "heavy guard hanging peer ($(hgcalls) probes)"
 rm -rf "$hg"
 
+# statusline.sh keeps Claude Code's feed and shows the plan's usage; usage-advisor.py reads it, and
+# for a risky task already failed once picks a higher effort than for a mechanical one.
+sl=$(mktemp -d)
+feed='{"workspace":{"current_dir":"/tmp"},"rate_limits":{"five_hour":{"used_percentage":9,"resets_at":4102444800},"seven_day":{"used_percentage":85,"resets_at":4102444800}},"model":{"display_name":"Opus"},"effort":{"level":"medium"}}'
+line=$(printf '%s' "$feed" | HOME="$sl" bin/statusline.sh)
+echo "$line" | grep -q "5h 9% · 7d 85% · Opus · medium" && [ -s "$sl/.cache/claude-statusline.json" ] \
+    && ok "statusline shows the usage and keeps the feed" || bad "statusline: $line"
+out=$(HOME="$sl" python3 bin/usage-advisor.py)
+echo "$out" | grep -q "85% used,  15% left" && ok "usage-advisor reads the feed" || bad "usage-advisor: $out"
+lo=$(HOME="$sl" python3 bin/usage-advisor.py --risk low | sed -n 's|.*/effort \([a-z]*\).*|\1|p')
+hi=$(HOME="$sl" python3 bin/usage-advisor.py --risk high --tries 1 | sed -n 's|.*/effort \([a-z]*\).*|\1|p')
+rank() { case $1 in low) echo 0;; medium) echo 1;; high) echo 2;; xhigh) echo 3;; max) echo 4;; *) echo -1;; esac; }
+[ "$(rank "$hi")" -gt "$(rank "$lo")" ] && [ "$(rank "$lo")" -ge 0 ] \
+    && ok "usage-advisor prices in retries ($lo for a low risk, $hi for a high one tried before)" || bad "usage-advisor picks: $lo / $hi"
+rm -rf "$sl"
+
 tests/sanitize.sh || fail=1
 
 [ $fail = 0 ] && echo "all passed" || { echo "failures"; exit 1; }

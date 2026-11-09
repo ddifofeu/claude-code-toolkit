@@ -6,7 +6,7 @@
 #   TOOLKIT_REPO=you/your-fork ./install.sh   # keep your own copy in sync instead
 #
 # Puts in ~/.claude: CLAUDE.md (the working rules; an existing one is kept as CLAUDE.md.bak-*),
-# bin/procs.sh, bin/supervise.sh, bin/budget-scan.py, hooks/bash-guards.py, hooks/heavy-guard.py,
+# bin/procs.sh, bin/supervise.sh, bin/budget-scan.py, bin/statusline.sh, bin/usage-advisor.py, hooks/bash-guards.py, hooks/heavy-guard.py,
 # tracker/tracker.py and tracker/pre-commit, and the sync script. Adds four hooks to
 # ~/.claude/settings.json, keeping all else (backup first): SessionStart refreshes the files from
 # GitHub; PreToolUse (Bash) runs the guard and the heavy-step guard (which allows everything until
@@ -28,6 +28,8 @@ if [ -n "$here" ] && [ -f "$here/hooks/bash-guards.py" ]; then   # from a clone
     install -m 755 "$here/bin/procs.sh" ~/.claude/bin/procs.sh
     install -m 755 "$here/bin/supervise.sh" ~/.claude/bin/supervise.sh
     install -m 755 "$here/bin/budget-scan.py" ~/.claude/bin/budget-scan.py
+    install -m 755 "$here/bin/statusline.sh" ~/.claude/bin/statusline.sh
+    install -m 755 "$here/bin/usage-advisor.py" ~/.claude/bin/usage-advisor.py
     install -m 755 "$here/hooks/bash-guards.py" ~/.claude/hooks/bash-guards.py
     install -m 644 "$here/hooks/bash-guards.cases.json" ~/.claude/hooks/bash-guards.cases.json
     install -m 755 "$here/hooks/promise-guard.py" ~/.claude/hooks/promise-guard.py
