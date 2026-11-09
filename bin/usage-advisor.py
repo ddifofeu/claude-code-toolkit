@@ -9,13 +9,17 @@ this reads the latest copy.
     usage-advisor.py                      what's used and left, and when each window resets
     usage-advisor.py --risk high [--tries N] [--size S]
                                           the pick for a task: model and effort, and the commands
-    usage-advisor.py --entry tracker/ST-015-*.md
+    usage-advisor.py --entry tracker/T-012-*.md
                                           the same, the risk and tries read off a tracker entry
+    usage-advisor.py ... --apply          also make the pick the default for new sessions (settings.json
+                                          "model" and modelSettings.<model id>.effortLevel) and print the
+                                          command that resumes this conversation with it
 
 The pick minimises the expected cost of getting the task right, retries included: a cheaper level
 that fails is paid for, then the next level up is paid for too. COST and FAIL below are assumptions
 (relative cost of one attempt; chance an attempt fails, by the task's risk); tune them from your own
-history. Model and effort can only be changed inside the session (/model, /effort): this prints them.
+history. A running session changes its model and effort only with /model and /effort; --apply sets the
+defaults and prints `claude --resume <session> --model M --effort E`, the same conversation on the pick.
 """
 import argparse
 import glob
@@ -71,12 +75,32 @@ def from_entry(path):
     return risk, tries
 
 
+def apply(model, effort, d):
+    """The pick as the default for new sessions, and the command resuming this one with it."""
+    p = os.path.expanduser("~/.claude/settings.json")
+    s = json.load(open(p)) if os.path.exists(p) else {}
+    s["model"] = model
+    # (The effort is kept per model id; the running model's id when it is the one picked.)
+    cur = d.get("model", {}).get("id", "")
+    mid = cur if model in cur else model
+    s.setdefault("modelSettings", {}).setdefault(mid, {})["effortLevel"] = effort
+    tmp = p + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(s, f, indent=2)
+    os.replace(tmp, p)
+    sid = d.get("session_id")
+    print(f"applied: new sessions start on {model} at {effort} effort ({p})")
+    if sid:
+        print(f"to switch this conversation: leave it (/exit), then  claude --resume {sid} --model {model} --effort {effort}")
+
+
 def main():
     a = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     a.add_argument("--risk", choices=["low", "medium", "high"])
     a.add_argument("--tries", type=int, default=0, help="attempts that already failed")
     a.add_argument("--size", type=float, default=1.0, help="the task's size, in usage %% at medium effort (a guess)")
     a.add_argument("--entry", help="a tracker entry: the risk and tries read off it")
+    a.add_argument("--apply", action="store_true", help="make the pick the default and print the resume command")
     o = a.parse_args()
     d, path = feed()
     age = time.time() - os.path.getmtime(path)
@@ -101,6 +125,8 @@ def main():
     for c, lv in sorted(((c, lv) for c, lv in plans), key=lambda x: LEVELS.index(x[1])):
         print(f"  {lv:7} {c:5.2f}{'   <- pick' if lv == best else ''}")
     print(f"pick: /model {model}   /effort {best}   (about {need:.1f}% of the week, {left}% left)")
+    if o.apply:
+        apply(model, best, d)
     if need > left:
         print("  not enough left this week: wait for the reset, or use API credit (/login with the Console account)")
 

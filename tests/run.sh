@@ -181,6 +181,13 @@ hi=$(HOME="$sl" python3 bin/usage-advisor.py --risk high --tries 1 | sed -n 's|.
 rank() { case $1 in low) echo 0;; medium) echo 1;; high) echo 2;; xhigh) echo 3;; max) echo 4;; *) echo -1;; esac; }
 [ "$(rank "$hi")" -gt "$(rank "$lo")" ] && [ "$(rank "$lo")" -ge 0 ] \
     && ok "usage-advisor prices in retries ($lo for a low risk, $hi for a high one tried before)" || bad "usage-advisor picks: $lo / $hi"
+printf '{"model":"sonnet","other":1}' > "$sl/.claude-settings.tmp"; mkdir -p "$sl/.claude" && mv "$sl/.claude-settings.tmp" "$sl/.claude/settings.json"
+fd=$(printf '%s' "$feed" | jq -c '. + {session_id: "abc-123", model: {id: "claude-opus-x", display_name: "Opus"}}'); printf '%s' "$fd" > "$sl/.cache/claude-statusline.json"
+out=$(HOME="$sl" python3 bin/usage-advisor.py --risk high --tries 1 --apply)
+[ "$(jq -r .model "$sl/.claude/settings.json")" = opus ] && [ "$(jq -r .other "$sl/.claude/settings.json")" = 1 ] \
+    && [ "$(jq -r '.modelSettings["claude-opus-x"].effortLevel' "$sl/.claude/settings.json")" = "$hi" ] \
+    && echo "$out" | grep -q "claude --resume abc-123 --model opus --effort $hi" \
+    && ok "usage-advisor --apply sets the defaults and prints the resume command" || bad "usage-advisor --apply: $out $(cat "$sl/.claude/settings.json")"
 rm -rf "$sl"
 
 tests/sanitize.sh || fail=1
