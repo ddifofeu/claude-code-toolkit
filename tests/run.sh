@@ -76,6 +76,18 @@ stop false | grep -q '"decision": "block"' && grep -q "promise-guard" "$home/.cl
     && ok "promise guard blocks once and logs" || bad "promise guard blocks once and logs"
 rm -rf "$home"
 
+# The away guard: its cases; a dialog allowed once the user has just written, refused (and logged) when
+# they last wrote an hour ago; a background notice is not the user writing.
+python3 hooks/away-guard.py --test >/dev/null && ok "away guard cases" || bad "away guard cases: $(python3 hooks/away-guard.py --test)"
+home=$(mktemp -d); mkdir -p "$home/.claude"
+aw() { echo "$2" | HOME=$home AWAY_GUARD_STATE=$home/.claude/away-guard.json python3 hooks/away-guard.py "$1"; }
+aw prompt '{"prompt":"go on"}'; fresh=$(aw ask '{}')
+echo "{\"t\": $(( $(date +%s) - 3600 ))}" > "$home/.claude/away-guard.json"
+aw prompt '{"prompt":"<task-notification>done</task-notification>"}'; stale=$(aw ask '{}')
+[ -z "$fresh" ] && echo "$stale" | grep -q '"permissionDecision": "deny"' && grep -q "away-guard" "$home/.claude/toolkit-hits.log" \
+    && ok "away guard refuses a dialog to an absent user, allows one to a present user" || bad "away guard refuses a dialog to an absent user, allows one to a present user"
+rm -rf "$home"
+
 # budget-scan: a test's time budget on the wall clock is flagged (JS and Python), CPU time and a
 # marked real wall-clock check are not.
 d=$(mktemp -d)

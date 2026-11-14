@@ -15,6 +15,7 @@ file short because it costs tokens in every session.
 | **Blocked by a hook** | [`bash-guards.py`](hooks/bash-guards.py) refuses known-bad Bash commands and names the safe alternative | `pkill -f worker` can match the shell running it. Also refuses git commands that skip hooks |
 | **Blocked by a hook, when configured** | [`heavy-guard.py`](hooks/heavy-guard.py) refuses a heavy step (a release build, a full test suite) while this machine is busy and a peer is idle, naming the line that runs it there | `cargo test --release` at load 20 on 32 cores while a build machine idles. Off until `~/.claude/heavy-guard.json` exists |
 | **Sent back once by a hook** | [`promise-guard.py`](hooks/promise-guard.py) returns a turn that ends on a promise with nothing started | "I'll start it now" with no tool call |
+| **Blocked by a hook** | [`away-guard.py`](hooks/away-guard.py) refuses a question dialog once the user's last message is 30 minutes old (`AWAY_GUARD_MIN`): the question is noted and asked when they write again | A dialog asked at 03:30 that held the session until 08:00 |
 | **Checked at commit** | The [tracker](tracker/tracker.py) check, and the [sanitisation scan](tests/sanitize.sh) for repositories that use it | A fixed bug whose regression test was deleted |
 | **Run on demand** | [`budget-scan.py`](bin/budget-scan.py), [`supervise.sh`](bin/supervise.sh), [`usage-advisor.py`](bin/usage-advisor.py), [`statusline.sh`](bin/statusline.sh) | Tests that assert a wall-clock time budget |
 | **Guidance only** | [`CLAUDE.md`](CLAUDE.md), which Claude Code reads but nothing forces it to follow | "Match the effort to the problem" |
@@ -26,8 +27,8 @@ known mistakes but can't prevent mistakes in general.
 
 A small personal toolkit, started in November 2026 and still changing.
 
-- **Tests:** `tests/run.sh` passed on 2026-11-07 at commit `61a858e` plus this fix on Linux (33 checks), including all 46 bash-guard
-  cases and 19 heavy-guard cases. macOS is intended but has no recorded test run.
+- **Tests:** `tests/run.sh` passed on 2026-11-14 on Linux (39 checks), including all bash-guard and
+  heavy-guard cases and the away guard's. macOS is intended but has no recorded test run.
 - **Effect:** guards log their blocks locally for pruning. The repository publishes no figures on
   how often they fire or how many mistakes they prevent.
 

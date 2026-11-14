@@ -34,6 +34,7 @@ if [ -n "$here" ] && [ -f "$here/hooks/bash-guards.py" ]; then   # from a clone
     install -m 644 "$here/hooks/bash-guards.cases.json" ~/.claude/hooks/bash-guards.cases.json
     install -m 755 "$here/hooks/promise-guard.py" ~/.claude/hooks/promise-guard.py
     install -m 644 "$here/hooks/promise-guard.cases.json" ~/.claude/hooks/promise-guard.cases.json
+    install -m 755 "$here/hooks/away-guard.py" ~/.claude/hooks/away-guard.py
     install -m 755 "$here/hooks/heavy-guard.py" ~/.claude/hooks/heavy-guard.py
     install -m 644 "$here/hooks/heavy-guard.cases.json" ~/.claude/hooks/heavy-guard.cases.json
     install -m 755 "$here/tracker/tracker.py" ~/.claude/tracker/tracker.py
@@ -45,7 +46,7 @@ else                                                          # piped from curl
     chmod 755 ~/.claude/hooks/sync-toolkit.sh
     bash ~/.claude/hooks/sync-toolkit.sh
 fi
-for f in CLAUDE.md bin/procs.sh bin/supervise.sh bin/budget-scan.py hooks/bash-guards.py hooks/promise-guard.py hooks/heavy-guard.py tracker/tracker.py; do
+for f in CLAUDE.md bin/procs.sh bin/supervise.sh bin/budget-scan.py hooks/bash-guards.py hooks/promise-guard.py hooks/away-guard.py hooks/heavy-guard.py tracker/tracker.py; do
     [ -s ~/.claude/$f ] || { echo "missing ~/.claude/$f" >&2; exit 1; }
 done
 
@@ -65,6 +66,9 @@ wanted = [  # (event, group): one group per hook, so a hook added later reaches 
     ("PreToolUse", {"matcher": "Bash", "hooks": [{"type": "command",
                     "command": "python3 ~/.claude/hooks/heavy-guard.py", "timeout": 10}]}),
     ("Stop", {"hooks": [{"type": "command", "command": "python3 ~/.claude/hooks/promise-guard.py", "timeout": 10}]}),
+    ("UserPromptSubmit", {"hooks": [{"type": "command", "command": "python3 ~/.claude/hooks/away-guard.py prompt", "timeout": 10}]}),
+    ("PreToolUse", {"matcher": "AskUserQuestion", "hooks": [{"type": "command",
+                    "command": "python3 ~/.claude/hooks/away-guard.py ask", "timeout": 10}]}),
 ]
 for event, group in wanted:
     groups = hooks.setdefault(event, [])
@@ -74,9 +78,10 @@ for event, group in wanted:
 with open(path, "w") as f:
     json.dump(settings, f, indent=2)
     f.write("\n")
-print(f"{path}: SessionStart sync, PreToolUse guard and heavy-guard, Stop promise-guard hooks present")
+print(f"{path}: SessionStart sync, PreToolUse guard and heavy-guard, Stop promise-guard, away-guard hooks present")
 EOF
 python3 ~/.claude/hooks/bash-guards.py --test
 python3 ~/.claude/hooks/promise-guard.py --test
+python3 ~/.claude/hooks/away-guard.py --test
 python3 ~/.claude/hooks/heavy-guard.py --test
 echo "installed from $SOURCE; new Claude Code sessions use it"
