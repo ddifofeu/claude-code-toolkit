@@ -55,6 +55,13 @@ echo '{"tool_input":{"command":"pkill -f x"}}' | HOME=$home python3 hooks/bash-g
 [ $? = 2 ] && grep -q "bash-guards	pkill" "$home/.claude/toolkit-hits.log" && ok "guard logs its blocks" || bad "guard hit log"
 rm -rf "$home"
 
+# A header field given twice (two branches' lines kept by a merge) is refused.
+r3=$(mktemp -d); git -C "$r3" init -q; mkdir -p "$r3/tracker" "$r3/tests"; echo 'def test_x(): assert True' > "$r3/tests/test_x.py"
+printf '# T-001 x\nkind: bug\nstatus: in-progress\nstatus: fixed\nreported: 2026-01-01, t\nblocker: -\ntest: tests/test_x.py\nfixed-in: abc\n' > "$r3/tracker/T-001-x.md"
+out=$(cd "$r3" && python3 "$OLDPWD/tracker/tracker.py" check 2>&1)
+[ $? -ne 0 ] && echo "$out" | grep -q "status: given twice" && ok "tracker rejects a header field given twice" || bad "tracker accepts a header field given twice: $out"
+rm -rf "$r3"
+
 # The pre-commit framework hook points at an executable tracker.
 grep -q "entry: tracker/tracker.py check" .pre-commit-hooks.yaml && [ -x tracker/tracker.py ] \
     && ok "pre-commit framework hook" || bad "pre-commit framework hook"

@@ -47,6 +47,8 @@ def load(path: Path) -> dict:
             break
         m = FIELD.match(line)
         if m:
+            if m.group(1) in entry:
+                entry.setdefault("repeated", []).append(m.group(1))
             entry[m.group(1)] = m.group(2).strip()
     entry["reopened"] = sum("reopened" in line.lower() for line in lines if line.startswith("- "))
     return entry
@@ -62,6 +64,9 @@ def problems(e: dict) -> list[str]:
         out.append("first line must be '# PREFIX-NNN Title', matching the file name")
     if e.get("kind") not in ("bug", "change"):
         out.append("kind: bug or change")
+    # A header field twice (a merge kept both sides' lines): the reader takes one, a hook may take the other.
+    for f in sorted(set(e.get("repeated", []))):
+        out.append(f"{f}: given twice in the header (a merge kept both lines?): keep one")
     status = e.get("status")
     if status not in STATUSES:
         out.append(f"status: one of {', '.join(STATUSES)}")
