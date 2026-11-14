@@ -83,9 +83,11 @@ home=$(mktemp -d); mkdir -p "$home/.claude"
 aw() { echo "$2" | HOME=$home AWAY_GUARD_STATE=$home/.claude/away-guard.json python3 hooks/away-guard.py "$1"; }
 aw prompt '{"prompt":"go on"}'; fresh=$(aw ask '{}')
 echo "{\"t\": $(( $(date +%s) - 3600 ))}" > "$home/.claude/away-guard.json"
-aw prompt '{"prompt":"<task-notification>done</task-notification>"}'; stale=$(aw ask '{}')
+aw prompt '{"prompt":"<task-notification>done</task-notification>"}'
+AWAY_GUARD_SCHEDULED=$home/.claude/sched.json; export AWAY_GUARD_SCHEDULED
+aw scheduled '{"tool_input":{"prompt":"check the build"}}'; aw prompt '{"prompt":"check the build"}'; stale=$(aw ask '{}'); unset AWAY_GUARD_SCHEDULED
 [ -z "$fresh" ] && echo "$stale" | grep -q '"permissionDecision": "deny"' && grep -q "away-guard" "$home/.claude/toolkit-hits.log" \
-    && ok "away guard refuses a dialog to an absent user, allows one to a present user" || bad "away guard refuses a dialog to an absent user, allows one to a present user"
+    && ok "away guard refuses a dialog to an absent user (a wakeup is not the user), allows one to a present user" || bad "away guard refuses a dialog to an absent user (a wakeup is not the user), allows one to a present user"
 rm -rf "$home"
 
 # budget-scan: a test's time budget on the wall clock is flagged (JS and Python), CPU time and a

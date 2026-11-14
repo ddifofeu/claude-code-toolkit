@@ -69,6 +69,8 @@ wanted = [  # (event, group): one group per hook, so a hook added later reaches 
     ("UserPromptSubmit", {"hooks": [{"type": "command", "command": "python3 ~/.claude/hooks/away-guard.py prompt", "timeout": 10}]}),
     ("PreToolUse", {"matcher": "AskUserQuestion", "hooks": [{"type": "command",
                     "command": "python3 ~/.claude/hooks/away-guard.py ask", "timeout": 10}]}),
+    ("PreToolUse", {"matcher": "ScheduleWakeup|CronCreate", "hooks": [{"type": "command",
+                    "command": "python3 ~/.claude/hooks/away-guard.py scheduled", "timeout": 10}]}),
 ]
 for event, group in wanted:
     groups = hooks.setdefault(event, [])

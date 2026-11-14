@@ -10,6 +10,9 @@ Two hooks, one script:
   UserPromptSubmit   python3 ~/.claude/hooks/away-guard.py prompt
                      records when the user last wrote (not a background job's notice, not a hook's
                      feedback: those arrive as prompts too, and one turned a guard like this off)
+  PreToolUse         python3 ~/.claude/hooks/away-guard.py scheduled (matcher: ScheduleWakeup|CronCreate)
+                     keeps the prompt a wakeup or a cron will send back: when it comes back it is not
+                     the user writing (one counted as "back after 94 min" and asked for a dialog)
   PreToolUse         python3 ~/.claude/hooks/away-guard.py ask       (matcher: AskUserQuestion)
                      refuses the dialog when the user last wrote AWAY_GUARD_MIN minutes ago or
                      more (default 30); Claude is told to note the question where the project keeps
@@ -24,6 +27,9 @@ from pathlib import Path
 
 STATE = Path(os.environ.get("AWAY_GUARD_STATE", Path.home() / ".claude" / "away-guard.json"))
 AWAY_MIN = float(os.environ.get("AWAY_GUARD_MIN", "30"))
+SCHEDULED = Path(os.environ.get("AWAY_GUARD_SCHEDULED", Path.home() / ".claude" / "away-guard-scheduled.json"))
+# The note a /loop puts before a wakeup's prompt.
+LOOP_NOTE = re.compile(r"^\s*\[[^\]\n]*(?:wakeup|loop)[^\]\n]*\]\s*", re.I)
 # Prompts that are not the user's words: background notices and hook feedback, wrapped or not.
 NOT_USER = re.compile(r"\[SYSTEM NOTIFICATION|^\s*(<[^>]+>\s*)*Stop hook feedback|<task-notification>|<agent-message", re.S)
 REASON = (
@@ -34,8 +40,16 @@ REASON = (
 )
 
 
+def scheduled_prompts() -> list[str]:
+    try:
+        return [x["p"] for x in json.loads(SCHEDULED.read_text())]
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
+
+
 def is_user(prompt: str) -> bool:
-    return bool(prompt.strip()) and not NOT_USER.search(prompt)
+    text = LOOP_NOTE.sub("", prompt).strip()
+    return bool(text) and not NOT_USER.search(prompt) and not text.startswith("<<autonomous-loop") and text not in scheduled_prompts()
 
 
 def away(now: float | None = None) -> float | None:
@@ -57,10 +71,17 @@ def test() -> None:
               "Stop hook feedback:\nkeep going", "<system-reminder>\nStop hook feedback:\nx", "  "]:
         if is_user(p):
             bad += 1; print(f"TAKEN FOR THE USER'S: {p!r}")
-    global STATE
+    global STATE, SCHEDULED
     import tempfile
     with tempfile.TemporaryDirectory() as d:
         STATE = Path(d) / "s.json"
+        SCHEDULED = Path(d) / "sched.json"
+        SCHEDULED.write_text(json.dumps([{"t": 0, "p": "Check the build log: done?"}]))
+        for p in ["Check the build log: done?", "[1 prior /loop wakeup found nothing actionable; loop is healthy.]\nCheck the build log: done?", "<<autonomous-loop-dynamic>>"]:
+            if is_user(p):
+                bad += 1; print(f"SCHEDULED TAKEN FOR THE USER'S: {p!r}")
+        if not is_user("Check the build log: done? and then the next one"):
+            bad += 1; print("the user's own words taken for a scheduled prompt")
         if away() is not None:
             bad += 1; print("never recorded: should allow")
         now = time.time()
@@ -70,7 +91,7 @@ def test() -> None:
         STATE.write_text(json.dumps({"t": now - 45 * 60}))
         if not away(now):
             bad += 1; print("45 min ago: should refuse")
-    print(f"away-guard: 10 cases, {bad} wrong")
+    print(f"away-guard: 14 cases, {bad} wrong")
     sys.exit(1 if bad else 0)
 
 
@@ -82,7 +103,16 @@ if __name__ == "__main__":
         event = json.load(sys.stdin)
     except ValueError:
         sys.exit(0)
-    if mode == "prompt":
+    if mode == "scheduled":
+        p = ((event.get("tool_input") or {}).get("prompt") or "").strip()
+        if p:
+            old = [x for x in ([{"p": q} for q in scheduled_prompts()]) if x["p"] != p][-49:]
+            try:
+                SCHEDULED.parent.mkdir(parents=True, exist_ok=True)
+                SCHEDULED.write_text(json.dumps(old + [{"t": time.time(), "p": p}]))
+            except OSError:
+                pass
+    elif mode == "prompt":
         if is_user(event.get("prompt") or ""):
             try:
                 STATE.parent.mkdir(parents=True, exist_ok=True)
